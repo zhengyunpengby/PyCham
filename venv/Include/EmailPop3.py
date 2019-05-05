@@ -10,8 +10,10 @@ from email.utils import parseaddr
 import email.iterators
 import datetime
 import time
+import QCWYHtml
+import HtmlToWord
 
-mypath = 'E://email/'
+mypath = 'E://email//'
 
 
 class MyTestCase(unittest.TestCase):
@@ -28,9 +30,10 @@ class MyTestCase(unittest.TestCase):
         print('Message: %s. Size: %s' % server.stat())
 
         resp, mails, objects = server.list()
-        for index in [20000-10]: #reversed(range(len(mails))):
+        for index in reversed(range(len(mails))): #reversed(range(len(mails))):
             # 取出某一个邮件的全部信息
             resp, lines, octets = server.retr(index)
+            filename=str(len(mails)-index)
             # 邮件取出的信息是bytes，转换成Parser支持的str
             lists = []
             for e in lines:
@@ -39,11 +42,23 @@ class MyTestCase(unittest.TestCase):
             msg = Parser().parsestr(msg_content)
             #print(msg)
             headerMap=self.print_header(msg)
-            print(headerMap['From'])
+            #print(headerMap['From'])
+            print(self.getWeb(headerMap['From']))
             contentMap=self.print_info(msg)
-            print(contentMap)
+            htmlFilename=mypath+filename+'.html';
+            file = open(htmlFilename,'wb');
+            content = contentMap['content']
+            content=content.replace(r'http://img01.51jobcdn.com/im/2016/resume/','')
+            if '51job'==self.getWeb(headerMap['From']):
+                content=QCWYHtml.praseHTML(content,contentMap['charset'])
+            content = content.encode(contentMap['charset'])
+            print(contentMap['charset'])
+            #print(content)
+            file.write(content)
+            file.close()
             print(index)
         # 提交操作信息并退出
+        HtmlToWord.change(mypath)
         server.quit()
 
     # 解析消息头中的字符串
@@ -60,11 +75,12 @@ class MyTestCase(unittest.TestCase):
     def savefile(self, filename, data, path):
         try:
             filepath = path + filename
-            print('Save as: ' + filepath)
+            #print('Save as: ' + filepath)
             f = open(filepath, 'wb')
         except:
-            print(filepath + ' open failed')
+            #print(filepath + ' open failed')
             # f.close()
+            pass
         else:
             f.write(data)
             f.close()
@@ -118,8 +134,9 @@ class MyTestCase(unittest.TestCase):
                 filename = self.decode_str(filename)
                 data = part.get_payload(decode=True)
                 if filename != None or filename != '':
-                    print('Accessory: ' + filename)
-                    self.savefile(filename, data, mypath)
+                    #print('Accessory: ' + filename)
+                    #self.savefile(filename, data, mypath)
+                    pass
             else:
                 email_content_type = ''
                 content = ''
@@ -131,8 +148,12 @@ class MyTestCase(unittest.TestCase):
                     if ('gb2312' in charset):
                         charset = 'gb18030'
                     content = part.get_payload(decode=True).decode(charset)
-                contentMap[content_type]=content
+                contentMap['content_type']=content_type
+                contentMap['content']=content
+                contentMap['charset']=charset
         return contentMap
+    def getWeb(self,email):
+        return email.split('.')[-2]
 
 
 if __name__ == '__main__':
